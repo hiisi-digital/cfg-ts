@@ -3,41 +3,48 @@
 <div align="center" style="text-align: center;">
 
 [![JSR](https://jsr.io/badges/@hiisi/cfg-ts)](https://jsr.io/@hiisi/cfg-ts)
-[![npm Version](https://img.shields.io/npm/v/cfg-ts?logo=npm)](https://www.npmjs.com/package/cfg-ts)
 [![GitHub Issues](https://img.shields.io/github/issues/hiisi-digital/cfg-ts.svg)](https://github.com/hiisi-digital/cfg-ts/issues)
 ![License](https://img.shields.io/github/license/hiisi-digital/cfg-ts?color=%23009689)
 
-> The `@cfg` decorator system for TypeScript - enabling Rust-like conditional compilation with custom syntax support.
+> The `@cfg` decorator for Rust-like conditional compilation in TypeScript, with a compiler transformer and language service plugin.
 
 </div>
 
+## Status
+
+Early skeleton. The module layout, exported types, and function signatures are in place, but the
+implementations are stubs that throw `Not implemented` when called, and the test suite is skipped.
+The sections below describe the intended surface; do not depend on this package yet.
+
 ## What it does
 
-`cfg-ts` provides the foundational `@cfg` decorator syntax for conditional compilation in TypeScript. Inspired by Rust's `#[cfg(...)]` attribute, it allows you to annotate any code element with compile-time conditions.
+`cfg-ts` defines the `@cfg` decorator syntax for conditional compilation in TypeScript. Inspired by
+Rust's `#[cfg(...)]` attribute, it annotates functions, classes, methods, or variables with
+compile-time conditions.
 
-This package includes:
+This package defines:
 
-- **TypeScript Language Service Plugin** for IDE support (no red squiggles on custom syntax)
-- **TypeScript Compiler Transformer** for processing `@cfg` decorators at build time
-- **Extensible predicate system** for custom conditions (features, targets, platforms, etc.)
+- **TypeScript Language Service Plugin** for IDE support (no errors on `@cfg` applied to non-class
+  elements, predicate completions, hover info)
+- **TypeScript Compiler Transformer** for stripping or stubbing `@cfg`-decorated code at build time
+  (pre-type-check transformation via ts-patch)
+- **Predicate system** with `feature`, `target`, `runtime`, `platform`, and `arch` predicates, the
+  `all`/`any`/`not` combinators, and a `CustomPredicate` type for user-defined conditions
 
-It serves as the base for other conditional compilation packages like `@hiisi/ft-flags` and `@hiisi/tgts`.
+It builds on [`@hiisi/ft-flags`](https://jsr.io/@hiisi/ft-flags) for feature flag state and
+[`@hiisi/tgts`](https://jsr.io/@hiisi/tgts) for target patterns.
 
 ## Installation
 
 ```bash
-# Deno
 deno add jsr:@hiisi/cfg-ts
-
-# npm / yarn / pnpm
-npm install cfg-ts
 ```
 
 ## Related Packages
 
 - [`@hiisi/otso`](https://jsr.io/@hiisi/otso) - The build framework that orchestrates cfg-ts
-- [`@hiisi/ft-flags`](https://jsr.io/@hiisi/ft-flags) - Feature flag predicates for @cfg
-- [`@hiisi/tgts`](https://jsr.io/@hiisi/tgts) - Target predicates (runtime, platform, arch) for @cfg
+- [`@hiisi/ft-flags`](https://jsr.io/@hiisi/ft-flags) - Feature flag registry backing the `feature()` predicates
+- [`@hiisi/tgts`](https://jsr.io/@hiisi/tgts) - Target patterns (runtime, platform, arch) backing the `target()` predicates
 - [`@hiisi/onlywhen`](https://jsr.io/@hiisi/onlywhen) - Runtime detection and conditional execution
 
 ## Support

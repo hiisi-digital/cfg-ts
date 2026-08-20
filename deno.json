@@ -1,6 +1,7 @@
 {
   "name": "@hiisi/cfg-ts",
   "version": "0.1.0",
+  "description": "The @cfg decorator for Rust-like conditional compilation in TypeScript, with a compiler transformer and language service plugin.",
   "license": "MPL-2.0",
   "exports": {
     ".": "./mod.ts",
