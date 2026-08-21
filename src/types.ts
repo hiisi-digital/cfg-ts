@@ -1,297 +1,258 @@
 /**
  * @module cfg-ts/types
- * Core type definitions for the @cfg decorator system.
+ *
+ * The type vocabulary the rest of the package is written against: what a
+ * predicate is, what it is evaluated against, and what the transformer does
+ * with the answer.
  */
 
 import type { FeatureId } from "@hiisi/ft-flags";
 import type { TargetId, TargetPattern } from "@hiisi/tgts";
 
 // =============================================================================
-// Predicate Types
+// Predicates
 // =============================================================================
 
 /**
- * Base predicate type that all predicates implement.
+ * A compile-time condition.
+ *
+ * Every predicate answers one question about an {@link EvaluationContext} and
+ * can say what it asked. Nothing here is async: a predicate is evaluated while
+ * a build is deciding whether to keep a piece of code, and a build that has to
+ * wait on a predicate has the wrong kind of predicate.
  */
 export interface Predicate {
-  /** The type of predicate for discrimination */
+  /** Which of the {@link PredicateType} shapes this is. */
   readonly type: PredicateType;
-  /** Evaluate this predicate against a context */
+  /** Answer the question against `context`. */
   evaluate(context: EvaluationContext): boolean;
-  /** Human-readable description of this predicate */
+  /** The question, in the source form it was written in. */
   describe(): string;
 }
 
-/**
- * All possible predicate types.
- */
+/** The closed set of predicate shapes. */
 export type PredicateType =
   | "feature"
   | "target"
   | "all"
   | "any"
   | "not"
+  | "constant"
   | "custom";
 
-/**
- * A predicate that checks if a feature is enabled.
- */
+/** True when a feature is enabled. */
 export interface FeaturePredicate extends Predicate {
   readonly type: "feature";
   readonly featureId: FeatureId;
 }
 
-/**
- * A predicate that checks if compiling for a specific target.
- */
+/** True when the target being built for matches a pattern. */
 export interface TargetPredicate extends Predicate {
   readonly type: "target";
   readonly pattern: TargetPattern;
 }
 
-/**
- * A predicate that requires all sub-predicates to be true.
- */
+/** True when every child is true. Empty is true, as conjunction over nothing. */
 export interface AllPredicate extends Predicate {
   readonly type: "all";
   readonly predicates: readonly Predicate[];
 }
 
-/**
- * A predicate that requires any sub-predicate to be true.
- */
+/** True when some child is true. Empty is false, as disjunction over nothing. */
 export interface AnyPredicate extends Predicate {
   readonly type: "any";
   readonly predicates: readonly Predicate[];
 }
 
-/**
- * A predicate that inverts another predicate.
- */
+/** True when its child is false. */
 export interface NotPredicate extends Predicate {
   readonly type: "not";
   readonly predicate: Predicate;
 }
 
 /**
- * A custom predicate with user-defined evaluation logic.
+ * The same answer whatever it is asked.
+ *
+ * This is what `always()` and `never()` build, and it is also what an
+ * unreachable branch collapses to once the surrounding predicates are known,
+ * which is why it is a shape rather than a special case.
+ */
+export interface ConstantPredicate extends Predicate {
+  readonly type: "constant";
+  readonly value: boolean;
+}
+
+/**
+ * A question the package does not know how to ask.
+ *
+ * Named at the call site and resolved from
+ * {@link TransformerOptions.customPredicates} at build time, so a project can
+ * gate on something only it knows about without cfg-ts growing a case for it.
  */
 export interface CustomPredicate extends Predicate {
   readonly type: "custom";
   readonly name: string;
-  readonly evaluator: (context: EvaluationContext) => boolean;
+  readonly args: readonly unknown[];
 }
 
-/**
- * Union of all predicate types.
- */
-export type AnyPredicate_ =
+/** Every predicate shape, as a union to switch on. */
+export type AnyPredicateShape =
   | FeaturePredicate
   | TargetPredicate
   | AllPredicate
   | AnyPredicate
   | NotPredicate
+  | ConstantPredicate
   | CustomPredicate;
 
 // =============================================================================
-// Evaluation Context
+// Evaluation
 // =============================================================================
 
 /**
- * Context provided to predicates during evaluation.
+ * What a predicate gets to look at.
+ *
+ * The target is a single id rather than a set, because a build produces one
+ * output per target and each output is decided on its own. Building for two
+ * targets is running this twice.
  */
 export interface EvaluationContext {
-  /** The current target being compiled for */
+  /** The target this output is being built for. */
   readonly target: TargetId;
-  /** Set of enabled feature IDs */
+  /** The features enabled for this build. */
   readonly enabledFeatures: ReadonlySet<FeatureId>;
-  /** Additional context values for custom predicates */
+  /** Evaluators for {@link CustomPredicate}, by name. */
+  readonly customPredicates?: Readonly<
+    Record<string, (args: readonly unknown[], context: EvaluationContext) => boolean>
+  >;
+  /** Anything a custom predicate needs and nothing else does. */
   readonly custom?: Readonly<Record<string, unknown>>;
 }
 
 /**
- * Result of evaluating a predicate.
+ * An evaluation with its working shown.
+ *
+ * The plain boolean is what the transformer acts on. This is what it reports
+ * when asked why, and what the language service puts in a hover, so a reader
+ * can see which half of an `all(...)` was the one that failed.
  */
 export interface EvaluationResult {
-  /** Whether the predicate evaluated to true */
+  /** The answer. */
   readonly result: boolean;
-  /** The predicate that was evaluated */
+  /** The predicate that gave it. */
   readonly predicate: Predicate;
-  /** Child results for composite predicates */
+  /** One entry per child, for the composite shapes. */
   readonly children?: readonly EvaluationResult[];
-  /** Reason for the result (for debugging) */
-  readonly reason?: string;
+  /** The answer in words. */
+  readonly reason: string;
 }
 
 // =============================================================================
-// @cfg Decorator Types
+// The decorator
 // =============================================================================
 
 /**
- * The @cfg decorator function signature.
+ * What `cfg(predicate)` returns.
  *
- * @example
- * ```ts
- * @cfg(feature("my.feature"))
- * function myFunction() { ... }
- *
- * @cfg(target("deno"))
- * export const denoOnlyValue = 42;
- *
- * @cfg(all(feature("shimp.fs"), target("node")))
- * class NodeFsHelper { ... }
- * ```
+ * TypeScript permits a decorator on a class and on a class element and nowhere
+ * else, so this is the only position where the returned function is ever
+ * called. Everywhere else the transformer reads the decorator off the syntax
+ * tree and the function is never reached. See {@link isNativelyDecoratable}.
  */
+export type DecoratorFunction = <T>(value: T, context?: unknown) => T;
+
+/** The type of the `cfg` export. */
 export type CfgDecorator = (predicate: Predicate) => DecoratorFunction;
 
+// =============================================================================
+// Transformation
+// =============================================================================
+
 /**
- * A decorator function that can be applied to various code elements.
+ * What becomes of code whose predicate is false.
  *
- * Note: TypeScript natively only supports decorators on classes and class members.
- * For other elements (functions, variables, exports), this requires the cfg-ts
- * transformer to process at build time.
- */
-export type DecoratorFunction = (
-  target: unknown,
-  context?: unknown,
-) => unknown;
-
-// =============================================================================
-// Transformer Types
-// =============================================================================
-
-/**
- * Action to take when a @cfg predicate evaluates to false.
+ * `strip` is the default and the only one that removes the code from the
+ * output. The other three exist because a stripped declaration takes its
+ * references with it, and finding out which ones is easier when the
+ * declaration is still there.
  */
 export type CfgAction =
-  | "strip" // Remove the code entirely
-  | "stub" // Replace with a stub that throws
-  | "warn" // Keep the code but emit a warning
-  | "keep"; // Keep the code (for debugging)
+  /** Remove it. */
+  | "strip"
+  /** Keep the declaration, replace the body with a throw. */
+  | "stub"
+  /** Keep it, and report it. */
+  | "warn"
+  /** Keep it, silently. */
+  | "keep";
 
-/**
- * Options for the @cfg transformer.
- */
+/** How to transform one source file. */
 export interface TransformerOptions {
-  /** The target being compiled for */
+  /** The target being built for. */
   readonly target: TargetId;
-  /** Set of enabled feature IDs */
+  /** The features enabled for this build. */
   readonly enabledFeatures: ReadonlySet<FeatureId>;
-  /** Action to take for false predicates (default: "strip") */
+  /** What to do with false predicates. Defaults to `strip`. */
   readonly falseAction?: CfgAction;
-  /** Whether to emit source maps */
-  readonly sourceMaps?: boolean;
-  /** Whether to preserve @cfg decorators in output (for debugging) */
+  /** Keep the `@cfg` decorators in the output. Defaults to false. */
   readonly preserveDecorators?: boolean;
-  /** Custom predicate evaluators */
-  readonly customPredicates?: Readonly<Record<string, (ctx: EvaluationContext) => boolean>>;
+  /** Evaluators for {@link CustomPredicate}, by name. */
+  readonly customPredicates?: Readonly<
+    Record<string, (args: readonly unknown[], context: EvaluationContext) => boolean>
+  >;
+  /** Anything a custom predicate needs and nothing else does. */
+  readonly custom?: Readonly<Record<string, unknown>>;
 }
 
-/**
- * Result of transforming a source file.
- */
+/** What one transformed file came to. */
 export interface TransformResult {
-  /** The transformed source code */
+  /** The output. */
   readonly code: string;
-  /** Source map if requested */
-  readonly map?: string;
-  /** Diagnostics/warnings from transformation */
+  /** Everything the transformer had to say about it. */
   readonly diagnostics: readonly TransformDiagnostic[];
-  /** Statistics about what was transformed */
+  /** The counts. */
   readonly stats: TransformStats;
 }
 
-/**
- * A diagnostic message from the transformer.
- */
+/** Something the transformer noticed, at a position in the input. */
 export interface TransformDiagnostic {
   readonly severity: "error" | "warning" | "info";
   readonly message: string;
   readonly file?: string;
+  /** One-based, to match what an editor shows. */
   readonly line?: number;
+  /** One-based, to match what an editor shows. */
   readonly column?: number;
   readonly predicate?: Predicate;
 }
 
 /**
- * Statistics about transformation.
+ * What one transform did.
+ *
+ * `decoratorsFound` is the total and the other three partition it, which is
+ * the invariant the counts are worth having at all for.
  */
 export interface TransformStats {
-  /** Number of @cfg decorators found */
   readonly decoratorsFound: number;
-  /** Number of elements stripped */
   readonly elementsStripped: number;
-  /** Number of elements stubbed */
   readonly elementsStubbed: number;
-  /** Number of elements kept */
   readonly elementsKept: number;
 }
 
 // =============================================================================
-// Plugin Types
+// Language service plugin
 // =============================================================================
 
-/**
- * Configuration for the TypeScript Language Service Plugin.
- */
+/** How the editor should evaluate `@cfg` while you are typing. */
 export interface PluginConfig {
-  /** Name of the plugin (for tsconfig.json) */
-  readonly name: string;
-  /** Default target for IDE evaluation */
-  readonly defaultTarget?: TargetId;
-  /** Features to consider enabled in IDE */
+  /** The plugin name, as tsconfig.json spells it. */
+  readonly name?: string;
+  /** The target to assume. Defaults to the machine the editor is running on. */
+  readonly defaultTarget?: string;
+  /** The features to assume enabled. */
   readonly enabledFeatures?: readonly string[];
-  /** Whether to show hover info for @cfg */
+  /** Explain `@cfg` on hover. Defaults to true. */
   readonly showHoverInfo?: boolean;
-  /** Whether to provide completions for predicates */
+  /** Complete predicate names. Defaults to true. */
   readonly provideCompletions?: boolean;
-}
-
-// =============================================================================
-// Error Types
-// =============================================================================
-
-/**
- * Error thrown when a predicate cannot be parsed.
- */
-export class PredicateParseError extends Error {
-  readonly source: string;
-
-  constructor(message: string, source: string) {
-    super(`Failed to parse predicate: ${message}`);
-    this.name = "PredicateParseError";
-    this.source = source;
-  }
-}
-
-/**
- * Error thrown when evaluation fails.
- */
-export class EvaluationError extends Error {
-  readonly predicate: Predicate;
-  readonly context: EvaluationContext;
-
-  constructor(message: string, predicate: Predicate, context: EvaluationContext) {
-    super(`Evaluation failed: ${message}`);
-    this.name = "EvaluationError";
-    this.predicate = predicate;
-    this.context = context;
-  }
-}
-
-/**
- * Error thrown when transformation fails.
- */
-export class TransformError extends Error {
-  readonly file?: string;
-  readonly line?: number;
-  readonly column?: number;
-
-  constructor(message: string, file?: string, line?: number, column?: number) {
-    super(`Transform failed: ${message}`);
-    this.name = "TransformError";
-    this.file = file;
-    this.line = line;
-    this.column = column;
-  }
 }

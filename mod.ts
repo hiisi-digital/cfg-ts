@@ -1,169 +1,192 @@
 /**
  * @module @hiisi/cfg-ts
  *
- * The `@cfg` decorator system for Rust-like conditional compilation in TypeScript.
- * Enables compile-time code stripping/stubbing based on feature flags and targets.
+ * Rust-style conditional compilation for TypeScript.
  *
- * This package provides:
- * - `@cfg(predicate)` decorator for conditional compilation
- * - TypeScript Language Service Plugin for IDE support
- * - TypeScript Compiler Transformer for build-time processing
- * - Predicate system for feature flags and target matching
+ * A `@cfg(...)` marks a declaration with the condition under which it belongs in the build.
+ * When the condition holds the declaration is kept and the marker is removed; when it does
+ * not, the declaration is stripped, so the output for a target contains only the code that
+ * target needs and nothing that was written for another one.
  *
- * @example
+ * ## Two forms, one grammar
+ *
+ * TypeScript permits a decorator on a class and a class element and nowhere else. On a
+ * function or a variable the checker raises TS1206, "Decorators are not valid here".
+ *
+ * That is a grammar check rather than a parse error, so the parser attaches the decorator
+ * anyway and the transformer reads it perfectly. The language service plugin suppresses the
+ * diagnostic for `@cfg` and only for `@cfg`, so an editor stops underlining it.
+ *
+ * Where installing a plugin is not wanted, the same condition is written as a leading
+ * comment, which is legal everywhere and needs nothing:
+ *
  * ```ts
- * import { cfg, feature, target, all } from "@hiisi/cfg-ts";
- *
- * // Conditional on feature flag
- * @cfg(feature("shimp.fs"))
- * export function readFile() { ... }
- *
- * // Conditional on target
- * @cfg(target("deno"))
- * export function denoSpecific() { ... }
- *
- * // Combined predicates
- * @cfg(all(feature("shimp.fs"), target("node")))
- * export function nodeFsHelper() { ... }
+ * //@cfg(target("node"))
+ * export const runtimeName = "node";
  * ```
+ *
+ * Both forms go through the same grammar, so a project can use either or both.
+ *
+ * ## Example
+ *
+ * ```ts
+ * import { all, capabilities, cfg, feature, target } from "@hiisi/cfg-ts";
+ *
+ * //@cfg(target("deno"))
+ * export const openFile = (path: string) => Deno.open(path);
+ *
+ * //@cfg(any(target("node"), target("bun")))
+ * export const openFile = (path: string) => import("node:fs").then((fs) => fs.open(path));
+ *
+ * @cfg(all(feature("gpu"), capabilities("webgpu")))
+ * export class GpuRenderer {}
+ * ```
+ *
+ * ## What it builds on
+ *
+ * Feature state comes from `@hiisi/ft-flags` and targets from `@hiisi/tgts`, so a `@cfg`
+ * asks the same questions the rest of a build already answers rather than inventing a second
+ * vocabulary for them.
  */
 
 // =============================================================================
-// Types
+// The decorator
 // =============================================================================
 
-export type {
-    AllPredicate,
-    AnyPredicate_,
-    CfgAction,
-    CfgDecorator,
-    CustomPredicate,
-    DecoratorFunction,
-    EvaluationContext,
-    EvaluationResult,
-    FeaturePredicate,
-    NotPredicate,
-    PluginConfig,
-    Predicate,
-    PredicateType,
-    TargetPredicate,
-    TransformDiagnostic,
-    TransformerOptions,
-    TransformResult,
-    TransformStats
-} from "./src/types.ts";
+import type { DecoratorFunction, Predicate } from "./src/types.ts";
+
+/**
+ * Mark a declaration with the condition under which it belongs in the build.
+ *
+ * At runtime this returns its argument unchanged. Every decision happens at build time, in
+ * the transformer, which reads the decorator off the syntax tree without running anything.
+ * The runtime identity is what makes an untransformed file still work: a project that has
+ * not wired the transformer in yet gets every declaration, which is wrong output but is not
+ * a crash, and is the right failure for a build step somebody forgot to add.
+ *
+ * @param predicate - The condition. Built from the predicate functions this module exports.
+ *
+ * @example
+ * ```ts
+ * @cfg(target("deno"))
+ * export class DenoOnly {}
+ * ```
+ */
+export function cfg(_predicate: Predicate): DecoratorFunction {
+  return <T>(value: T): T => value;
+}
+
+// =============================================================================
+// Predicates
+// =============================================================================
 
 export {
-    EvaluationError,
-    PredicateParseError,
-    TransformError
-} from "./src/types.ts";
+  all,
+  allFeatures,
+  always,
+  any,
+  anyFeature,
+  arch,
+  capabilities,
+  constant,
+  custom,
+  evaluate,
+  feature,
+  formatEvaluationResult,
+  isCustomPredicate,
+  isFeaturePredicate,
+  isTargetPredicate,
+  never,
+  not,
+  notFeature,
+  notTarget,
+  platform,
+  runtime,
+  target,
+  targetAll,
+  targetAny,
+} from "./src/predicates/mod.ts";
+
+// =============================================================================
+// Reading a predicate out of source
+// =============================================================================
+
+export { parsePredicate, parsePredicateExpression, PREDICATE_NAMES } from "./src/parse.ts";
+
+// =============================================================================
+// The transformer
+// =============================================================================
+
+export {
+  CFG_NAME,
+  createEmptyStats,
+  createEvaluationContext,
+  createTransformer,
+  evaluatePredicate,
+  extractPredicateExpression,
+  findCfgDecorators,
+  getDecoratedNodeKind,
+  getDecorators,
+  isCfgDecorator,
+  isNativelyDecoratable,
+  programTransformer,
+  transformSource,
+} from "./src/transform/mod.ts";
+
+export { contextFromStrings } from "./src/transform/evaluator.ts";
+
+export type { CfgForm, DetectedCfgDecorator, DetectorOptions } from "./src/transform/detector.ts";
+
+// =============================================================================
+// The language service plugin
+// =============================================================================
+
+export {
+  createLanguageService,
+  DECORATORS_NOT_VALID_HERE,
+  init as initPlugin,
+} from "./src/plugin/mod.ts";
+
+export type { PluginCreateInfo } from "./src/plugin/mod.ts";
 
 // =============================================================================
 // Errors
 // =============================================================================
 
 export {
-    CfgError,
-    InvalidCfgUsageError,
-    PluginError,
-    PredicateEvaluationError,
-    PredicateParseError as PredicateParseErr,
-    TransformError as TransformErr,
-    UndefinedFeatureError,
-    UndefinedTargetError
+  CfgError,
+  InvalidCfgUsageError,
+  PluginError,
+  PredicateEvaluationError,
+  PredicateParseError,
+  TransformError,
+  UndefinedFeatureError,
+  UndefinedTargetError,
 } from "./src/errors.ts";
 
 // =============================================================================
-// Predicates
+// Types
 // =============================================================================
 
-export { all, any, not } from "./src/predicates/combinators.ts";
-
-export {
-    allFeatures,
-    anyFeature,
-    feature,
-    notFeature
-} from "./src/predicates/feature.ts";
-
-export {
-    arch,
-    platform,
-    runtime,
-    target
-} from "./src/predicates/target.ts";
-
-// =============================================================================
-// Transformer
-// =============================================================================
-
-export {
-    createEmptyStats,
-    createTransformer,
-    createVisitor,
-    processNode,
-    programTransformer,
-    transformSource
-} from "./src/transform/mod.ts";
-
-export {
-    extractPredicateExpression,
-    findCfgDecorators,
-    getDecoratedNodeKind,
-    getDecorators,
-    isCfgDecorator,
-    isNativelyDecoratable
-} from "./src/transform/detector.ts";
-
-export {
-    createEvaluationContext,
-    evaluatePredicate,
-    formatEvaluationResult
-} from "./src/transform/evaluator.ts";
-
-export type { DetectedCfgDecorator, DetectorOptions } from "./src/transform/detector.ts";
-
-// =============================================================================
-// Plugin (re-exported for convenience, main entry is ./plugin)
-// =============================================================================
-
-export { createLanguageService, init as initPlugin } from "./src/plugin/mod.ts";
-
-// =============================================================================
-// The @cfg decorator function
-// =============================================================================
-
-/**
- * The @cfg decorator for conditional compilation.
- *
- * Apply to functions, classes, methods, or variables to conditionally
- * include/exclude them based on feature flags and target configuration.
- *
- * Note: For non-class elements, this requires the cfg-ts transformer to
- * process at build time. The Language Service Plugin provides IDE support.
- *
- * @param predicate - The predicate to evaluate (feature, target, all, any, not)
- * @returns A decorator function
- *
- * @example
- * ```ts
- * @cfg(feature("my.feature"))
- * function myFunction() { ... }
- *
- * @cfg(all(feature("shimp.fs"), target("node")))
- * class NodeFsHelper { ... }
- * ```
- */
-export function cfg(_predicate: Predicate): DecoratorFunction {
-  // At runtime, this is a no-op. The actual processing happens at build time
-  // via the transformer. This function exists for:
-  // 1. Type checking (so @cfg is a valid decorator)
-  // 2. Runtime fallback (keeps decorated code when not transformed)
-  return function <T>(target: T): T {
-    return target;
-  };
-}
-
-// Import for cfg function signature
-import type { DecoratorFunction, Predicate } from "./src/types.ts";
+export type {
+  AllPredicate,
+  AnyPredicate,
+  AnyPredicateShape,
+  CfgAction,
+  CfgDecorator,
+  ConstantPredicate,
+  CustomPredicate,
+  DecoratorFunction,
+  EvaluationContext,
+  EvaluationResult,
+  FeaturePredicate,
+  NotPredicate,
+  PluginConfig,
+  Predicate,
+  PredicateType,
+  TargetPredicate,
+  TransformDiagnostic,
+  TransformerOptions,
+  TransformResult,
+  TransformStats,
+} from "./src/types.ts";

@@ -1,122 +1,60 @@
 /**
- * Feature predicate for @cfg decorator
+ * @module cfg-ts/predicates/feature
  *
- * Creates predicates that evaluate to true when a feature flag is enabled.
- * Integrates with @hiisi/ft-flags for feature state lookup.
- *
- * @module
+ * Predicates over the feature set a build was configured with.
  */
 
-import type { Predicate, PredicateContext } from "../types.ts";
+import { featureId } from "@hiisi/ft-flags";
+import type { EvaluationContext, FeaturePredicate, Predicate } from "../types.ts";
+import { all, any, not } from "./combinators.ts";
 
 /**
- * Creates a predicate that checks if a feature is enabled.
+ * True when `id` is one of the build's enabled features.
  *
- * @param featureId - The feature ID to check (e.g., "shimp.fs")
- * @returns A predicate that evaluates to true if the feature is enabled
+ * The id is validated here rather than at evaluation, so a typo in a `@cfg` is a build
+ * error at the point it was written instead of a silently false predicate that strips code
+ * nobody meant to strip. That failure is the expensive one, because a stripped declaration
+ * takes its references with it and the error surfaces somewhere else entirely.
  *
- * TODO: Implement integration with @hiisi/ft-flags
- * - Look up feature in the context's feature registry
- * - Handle hierarchical features (parent.child notation)
- * - Return false if feature is not registered (with optional warning)
+ * Resolution is against {@link EvaluationContext.enabledFeatures}, which the build fills
+ * from ft-flags after it has resolved implications. A feature enabled only because another
+ * feature implies it is in that set, so this sees it.
  *
  * @example
  * ```ts
- * @cfg(feature("shimp.fs"))
- * export function readFile() { ... }
+ * feature("shimp.fs")
  * ```
  */
-export function feature(featureId: string): Predicate {
+export function feature(id: string): FeaturePredicate {
+  const validated = featureId(id);
   return {
     type: "feature",
-    id: featureId,
-    evaluate: (_context: PredicateContext): boolean => {
-      // TODO: Get feature registry from context
-      // TODO: Call isEnabled(featureId, registry) from @hiisi/ft-flags
-      // TODO: Return evaluation result
-      throw new Error(`Not implemented: feature predicate for "${featureId}"`);
+    featureId: validated,
+    evaluate(context: EvaluationContext): boolean {
+      return context.enabledFeatures.has(validated);
     },
-    toString: (): string => `feature("${featureId}")`,
+    describe(): string {
+      return `feature("${id}")`;
+    },
   };
 }
 
-/**
- * Creates a predicate that checks if a feature is NOT enabled.
- *
- * @param featureId - The feature ID to check
- * @returns A predicate that evaluates to true if the feature is disabled
- *
- * TODO: Implement as negation of feature()
- *
- * @example
- * ```ts
- * @cfg(notFeature("deprecated.oldApi"))
- * export function newApi() { ... }
- * ```
- */
-export function notFeature(featureId: string): Predicate {
-  const inner = feature(featureId);
-  return {
-    type: "not-feature",
-    id: featureId,
-    evaluate: (context: PredicateContext): boolean => {
-      // TODO: Negate the inner predicate result
-      return !inner.evaluate(context);
-    },
-    toString: (): string => `not(feature("${featureId}"))`,
-  };
+/** True when `id` is not enabled. */
+export function notFeature(id: string): Predicate {
+  return not(feature(id));
 }
 
-/**
- * Creates a predicate that checks if any of the specified features are enabled.
- *
- * @param featureIds - The feature IDs to check
- * @returns A predicate that evaluates to true if ANY feature is enabled
- *
- * TODO: Implement as disjunction of feature predicates
- *
- * @example
- * ```ts
- * @cfg(anyFeature("shimp.fs", "shimp.env"))
- * export function readConfig() { ... }
- * ```
- */
-export function anyFeature(...featureIds: string[]): Predicate {
-  const predicates = featureIds.map(feature);
-  return {
-    type: "any-feature",
-    ids: featureIds,
-    evaluate: (context: PredicateContext): boolean => {
-      // TODO: Check each predicate, return true if any is true
-      return predicates.some((p) => p.evaluate(context));
-    },
-    toString: (): string => `anyFeature(${featureIds.map((id) => `"${id}"`).join(", ")})`,
-  };
+/** True when every id is enabled. `allFeatures()` with no arguments is true. */
+export function allFeatures(...ids: string[]): Predicate {
+  return all(...ids.map(feature));
 }
 
-/**
- * Creates a predicate that checks if all of the specified features are enabled.
- *
- * @param featureIds - The feature IDs to check
- * @returns A predicate that evaluates to true if ALL features are enabled
- *
- * TODO: Implement as conjunction of feature predicates
- *
- * @example
- * ```ts
- * @cfg(allFeatures("shimp.fs", "shimp.env"))
- * export function fullSystemAccess() { ... }
- * ```
- */
-export function allFeatures(...featureIds: string[]): Predicate {
-  const predicates = featureIds.map(feature);
-  return {
-    type: "all-features",
-    ids: featureIds,
-    evaluate: (context: PredicateContext): boolean => {
-      // TODO: Check each predicate, return true only if all are true
-      return predicates.every((p) => p.evaluate(context));
-    },
-    toString: (): string => `allFeatures(${featureIds.map((id) => `"${id}"`).join(", ")})`,
-  };
+/** True when some id is enabled. `anyFeature()` with no arguments is false. */
+export function anyFeature(...ids: string[]): Predicate {
+  return any(...ids.map(feature));
+}
+
+/** Whether `predicate` is the shape {@link feature} builds. */
+export function isFeaturePredicate(predicate: Predicate): predicate is FeaturePredicate {
+  return predicate.type === "feature";
 }
