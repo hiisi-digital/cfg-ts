@@ -33,45 +33,41 @@
 // =============================================================================
 
 export type {
-    AllPredicate,
-    AnyPredicate_,
-    CfgAction,
-    CfgDecorator,
-    CustomPredicate,
-    DecoratorFunction,
-    EvaluationContext,
-    EvaluationResult,
-    FeaturePredicate,
-    NotPredicate,
-    PluginConfig,
-    Predicate,
-    PredicateType,
-    TargetPredicate,
-    TransformDiagnostic,
-    TransformerOptions,
-    TransformResult,
-    TransformStats
+  AllPredicate,
+  AnyPredicate_,
+  CfgAction,
+  CfgDecorator,
+  CustomPredicate,
+  DecoratorFunction,
+  EvaluationContext,
+  EvaluationResult,
+  FeaturePredicate,
+  NotPredicate,
+  PluginConfig,
+  Predicate,
+  PredicateType,
+  TargetPredicate,
+  TransformDiagnostic,
+  TransformerOptions,
+  TransformResult,
+  TransformStats,
 } from "./src/types.ts";
 
-export {
-    EvaluationError,
-    PredicateParseError,
-    TransformError
-} from "./src/types.ts";
+export { EvaluationError, PredicateParseError, TransformError } from "./src/types.ts";
 
 // =============================================================================
 // Errors
 // =============================================================================
 
 export {
-    CfgError,
-    InvalidCfgUsageError,
-    PluginError,
-    PredicateEvaluationError,
-    PredicateParseError as PredicateParseErr,
-    TransformError as TransformErr,
-    UndefinedFeatureError,
-    UndefinedTargetError
+  CfgError,
+  InvalidCfgUsageError,
+  PluginError,
+  PredicateEvaluationError,
+  PredicateParseError as PredicateParseErr,
+  TransformError as TransformErr,
+  UndefinedFeatureError,
+  UndefinedTargetError,
 } from "./src/errors.ts";
 
 // =============================================================================
@@ -80,46 +76,36 @@ export {
 
 export { all, any, not } from "./src/predicates/combinators.ts";
 
-export {
-    allFeatures,
-    anyFeature,
-    feature,
-    notFeature
-} from "./src/predicates/feature.ts";
+export { allFeatures, anyFeature, feature, notFeature } from "./src/predicates/feature.ts";
 
-export {
-    arch,
-    platform,
-    runtime,
-    target
-} from "./src/predicates/target.ts";
+export { arch, platform, runtime, target } from "./src/predicates/target.ts";
 
 // =============================================================================
 // Transformer
 // =============================================================================
 
 export {
-    createEmptyStats,
-    createTransformer,
-    createVisitor,
-    processNode,
-    programTransformer,
-    transformSource
+  createEmptyStats,
+  createTransformer,
+  createVisitor,
+  processNode,
+  programTransformer,
+  transformSource,
 } from "./src/transform/mod.ts";
 
 export {
-    extractPredicateExpression,
-    findCfgDecorators,
-    getDecoratedNodeKind,
-    getDecorators,
-    isCfgDecorator,
-    isNativelyDecoratable
+  extractPredicateExpression,
+  findCfgDecorators,
+  getDecoratedNodeKind,
+  getDecorators,
+  isCfgDecorator,
+  isNativelyDecoratable,
 } from "./src/transform/detector.ts";
 
 export {
-    createEvaluationContext,
-    evaluatePredicate,
-    formatEvaluationResult
+  createEvaluationContext,
+  evaluatePredicate,
+  formatEvaluationResult,
 } from "./src/transform/evaluator.ts";
 
 export type { DetectedCfgDecorator, DetectorOptions } from "./src/transform/detector.ts";

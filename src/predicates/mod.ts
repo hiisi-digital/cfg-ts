@@ -1,13 +1,35 @@
 /**
  * @module cfg-ts/predicates
  *
- * Predicate system for evaluating @cfg conditions.
- * Predicates can check feature flags, targets, or combine multiple conditions.
+ * Everything that builds or evaluates a `@cfg` condition.
  */
 
-export { all, any, not } from "./combinators.ts";
-export { evaluate } from "./evaluate.ts";
-export { feature, featureAll, featureAny } from "./feature.ts";
-export { target, targetAll, targetAny } from "./target.ts";
+export { all, always, any, constant, never, not } from "./combinators.ts";
+export { allFeatures, anyFeature, feature, isFeaturePredicate, notFeature } from "./feature.ts";
+export {
+  arch,
+  capabilities,
+  isTargetPredicate,
+  notTarget,
+  platform,
+  runtime,
+  target,
+  targetAll,
+  targetAny,
+} from "./target.ts";
+export { custom, isCustomPredicate } from "./custom.ts";
+export { evaluate, formatEvaluationResult } from "./evaluate.ts";
 
-export type { Predicate, PredicateContext, PredicateResult } from "./types.ts";
+export type {
+  AllPredicate,
+  AnyPredicate,
+  ConstantPredicate,
+  CustomPredicate,
+  EvaluationContext,
+  EvaluationResult,
+  FeaturePredicate,
+  NotPredicate,
+  Predicate,
+  PredicateType,
+  TargetPredicate,
+} from "../types.ts";
