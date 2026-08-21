@@ -8,7 +8,8 @@
     "@std/testing": "jsr:@std/testing@^1.0.0",
     "@hiisi/ft-flags": "jsr:@hiisi/ft-flags@^0.2.0",
     "@hiisi/tgts": "jsr:@hiisi/tgts@^0.2.0",
-    "typescript": "npm:typescript@^5.9.2"
+    "typescript": "npm:typescript@^5.9.2",
+    "@std/path": "jsr:@std/path@^1.0.0"
   },
   "lint": {
     "include": [

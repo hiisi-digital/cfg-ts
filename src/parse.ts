@@ -114,13 +114,13 @@ export function parsePredicateExpression(
       return anyFeature(...strings());
 
     case "target":
-      return target(patternArg(one(args, name, text(expression)), name, source, text));
+      return target(patternArg(one(args, name, text(expression)), name, text));
     case "notTarget":
-      return notTarget(patternArg(one(args, name, text(expression)), name, source, text));
+      return notTarget(patternArg(one(args, name, text(expression)), name, text));
     case "targetAll":
-      return targetAll(...args.map((a) => patternArg(a, name, source, text)));
+      return targetAll(...args.map((a) => patternArg(a, name, text)));
     case "targetAny":
-      return targetAny(...args.map((a) => patternArg(a, name, source, text)));
+      return targetAny(...args.map((a) => patternArg(a, name, text)));
 
     // The axis shorthands. Their argument is a union of string literals in the typed API, so
     // the cast is the one place a parsed string crosses into it; an unknown name is caught by
@@ -242,7 +242,6 @@ function stringArg(
 function patternArg(
   node: ts.Expression,
   name: string,
-  source: ts.SourceFile | undefined,
   text: (n: ts.Node) => string,
 ): string | TargetPattern {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
