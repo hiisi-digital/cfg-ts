@@ -106,10 +106,23 @@ is the ts-patch entry point. For the editor, add the plugin to `tsconfig.json`:
 
 ## Developing on it
 
-`@hiisi/tgts` is not published yet, so `deno.local.json` links the sibling checkouts the way a
-cargo `[patch]` section does. `deno task check:local` and `deno task test` use it; the
-committed `deno.json` keeps the registry specifiers a consumer needs. It assumes `tgts` and
-`ft-flags` are checked out beside this repo.
+`@hiisi/tgts` and `@hiisi/ft-flags` are not published yet, so the `links` block in `deno.json`
+resolves them from the sibling checkouts, the way a cargo `[patch]` section does. It assumes both
+are checked out beside this repo. The registry specifiers a consumer needs stay in `imports`, so
+the manifest still declares the real dependency and the block goes away entirely once those two
+publish.
+
+Two things about `links` are worth knowing before you copy this, because neither is obvious and
+one of them breaks packages. Deno discards a dependency's own `links` and says so:
+
+```
+Warning "links" field can only be specified in the workspace root deno.json file.
+```
+
+That is the good half: a consumer of this package is unaffected by the block. It is also the half
+that bites, because **`links` does not compose.** A root linking one sibling gets that sibling's
+source and none of the resolution _it_ needed, so every root has to enumerate the whole transitive
+set itself. Getting that wrong fails with a missing version for a package the root never named.
 
 ## Installation
 
