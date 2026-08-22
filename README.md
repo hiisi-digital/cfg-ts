@@ -106,10 +106,10 @@ is the ts-patch entry point. For the editor, add the plugin to `tsconfig.json`:
 
 ## Developing on it
 
-`@hiisi/tgts` is not published yet, so `deno.local.json` links the sibling checkouts the way a
-cargo `[patch]` section does. `deno task check:local` and `deno task test` use it; the
-committed `deno.json` keeps the registry specifiers a consumer needs. It assumes `tgts` and
-`ft-flags` are checked out beside this repo.
+`@hiisi/tgts` and `@hiisi/ft-flags` are not published yet, so the `links` block in `deno.json`
+resolves them from the sibling checkouts, the way a cargo `[patch]` section does. It assumes both
+are checked out beside this repo. The registry specifiers a consumer needs stay in `imports`, and
+deno ignores a dependency's `links`, so nothing downstream sees the block.
 
 ## Installation
 

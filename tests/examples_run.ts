@@ -13,7 +13,7 @@ import { dirname, fromFileUrl, join } from "@std/path";
 
 const ROOT = dirname(dirname(fromFileUrl(import.meta.url)));
 const EXAMPLES = join(ROOT, "examples");
-const CONFIG = join(ROOT, "deno.local.json");
+const CONFIG = join(ROOT, "deno.json");
 
 async function run(name: string): Promise<string> {
   const { success, stdout, stderr } = await new Deno.Command(Deno.execPath(), {
