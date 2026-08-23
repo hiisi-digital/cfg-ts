@@ -6,24 +6,9 @@
  */
 
 import { assert, assertEquals, assertFalse, assertThrows } from "@std/assert";
-import { featureId } from "@hiisi/ft-flags";
-import type { FeatureId } from "@hiisi/ft-flags";
-import { targetId } from "@hiisi/tgts";
 import { parsePredicate, PREDICATE_NAMES } from "../src/parse.ts";
 import { PredicateParseError } from "../src/errors.ts";
-import type { EvaluationContext } from "../src/types.ts";
-
-function context(
-  targetName: string,
-  features: string[] = [],
-  customPredicates: EvaluationContext["customPredicates"] = undefined,
-): EvaluationContext {
-  return {
-    target: targetId(targetName),
-    enabledFeatures: new Set<FeatureId>(features.map(featureId)),
-    ...(customPredicates ? { customPredicates } : {}),
-  };
-}
+import { context } from "./helpers.ts";
 
 Deno.test("a parsed predicate round-trips through describe", () => {
   // The strongest cheap check available: parsing and describing are written independently,

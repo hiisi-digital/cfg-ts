@@ -6,10 +6,6 @@
  */
 
 import { assert, assertEquals, assertFalse, assertThrows } from "@std/assert";
-import { featureId } from "@hiisi/ft-flags";
-import type { FeatureId } from "@hiisi/ft-flags";
-import { targetId } from "@hiisi/tgts";
-import type { EvaluationContext } from "../src/types.ts";
 import {
   all,
   allFeatures,
@@ -33,19 +29,9 @@ import {
   targetAny,
 } from "../src/predicates/mod.ts";
 import { PredicateEvaluationError } from "../src/errors.ts";
+import { context } from "./helpers.ts";
 
 /** A context, with the fiddly branding done once. */
-function context(
-  targetName: string,
-  features: string[] = [],
-  customPredicates: EvaluationContext["customPredicates"] = undefined,
-): EvaluationContext {
-  return {
-    target: targetId(targetName),
-    enabledFeatures: new Set<FeatureId>(features.map(featureId)),
-    ...(customPredicates ? { customPredicates } : {}),
-  };
-}
 
 Deno.test("feature is true exactly when the id is in the enabled set", () => {
   assert(feature("net").evaluate(context("deno", ["net"])));

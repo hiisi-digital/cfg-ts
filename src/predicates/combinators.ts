@@ -14,6 +14,39 @@ import type {
 } from "../types.ts";
 
 /**
+ * Build one of the two quantifiers.
+ *
+ * `all` and `any` differ in exactly one thing: which answer lets them stop
+ * early. `all` stops at the first false and is otherwise true; `any` stops at
+ * the first true and is otherwise false. Spelling the loop out twice made two
+ * places where the short-circuit could be got wrong, and they were 98 per cent
+ * identical for the reason that they are the same fold with one bit flipped.
+ *
+ * @param type Which quantifier this is, which is also how it describes itself.
+ * @param stopAt The result that ends the loop, and the answer when it does.
+ */
+function quantifier<T extends "all" | "any">(
+  type: T,
+  stopAt: boolean,
+  predicates: readonly Predicate[],
+): { readonly type: T; readonly predicates: readonly Predicate[] } & Predicate {
+  const frozen = Object.freeze([...predicates]);
+  return {
+    type,
+    predicates: frozen,
+    evaluate(context: EvaluationContext): boolean {
+      for (const predicate of frozen) {
+        if (predicate.evaluate(context) === stopAt) return stopAt;
+      }
+      return !stopAt;
+    },
+    describe(): string {
+      return `${type}(${frozen.map((p) => p.describe()).join(", ")})`;
+    },
+  };
+}
+
+/**
  * True when every argument is true.
  *
  * Short-circuits on the first false, so a predicate that would be expensive or would throw
@@ -27,20 +60,7 @@ import type {
  * ```
  */
 export function all(...predicates: Predicate[]): AllPredicate {
-  const frozen = Object.freeze([...predicates]);
-  return {
-    type: "all",
-    predicates: frozen,
-    evaluate(context: EvaluationContext): boolean {
-      for (const predicate of frozen) {
-        if (!predicate.evaluate(context)) return false;
-      }
-      return true;
-    },
-    describe(): string {
-      return `all(${frozen.map((p) => p.describe()).join(", ")})`;
-    },
-  };
+  return quantifier("all", false, predicates);
 }
 
 /**
@@ -55,20 +75,7 @@ export function all(...predicates: Predicate[]): AllPredicate {
  * ```
  */
 export function any(...predicates: Predicate[]): AnyPredicate {
-  const frozen = Object.freeze([...predicates]);
-  return {
-    type: "any",
-    predicates: frozen,
-    evaluate(context: EvaluationContext): boolean {
-      for (const predicate of frozen) {
-        if (predicate.evaluate(context)) return true;
-      }
-      return false;
-    },
-    describe(): string {
-      return `any(${frozen.map((p) => p.describe()).join(", ")})`;
-    },
-  };
+  return quantifier("any", true, predicates);
 }
 
 /**
